@@ -1,0 +1,26 @@
+#
+Query:
+select A.[WellName]
+      ,A.[API]
+         ,round(AVG(A.[mcfe]) over (partition by [wellkey],month_key),2) as MonthlyGas_Avg
+         ,round(avg(A.[water]) over (partition by [wellkey],month_key),2) as MonthlyWater_Avg
+         ,A.[DateKey]
+FROM (
+SELECT distinct ProdData.[Wellkey]
+      ,ProdData.[DateKey]
+      ,ProdData.[MCFE]
+      ,ProdData.[Water]
+      ,WellInfo.[WellName]
+      ,WellInfo.[API]
+      ,WellInfo.[BusinessUnit]
+      ,WellInfo.[Asset]
+         ,month(ProdData.[datekey]) as month_key
+         ,month_rank=row_number() over
+          (partition by ProdData.[wellkey], year(ProdData.[datekey]),month(ProdData.[datekey]) order by convert(datetime,ProdData.[datekey]) desc)
+ FROM [Facts].[Production] ProdData
+  right join [Dimensions].[Wells] WellInfo
+  on ProdData.[wellkey]=WellInfo.[wellkey]
+  where WellInfo.[businessunit] = 'east' and WellInfo.[asset] in ('north','south')
+and ProdData.datekey>=convert(date,dateadd(month,-11,getdate())) ) A
+where month_rank=1
+order by [api],[datekey] desc
